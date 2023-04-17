@@ -1,0 +1,97 @@
+---
+title: "R for Data Science"
+author: "Charles Kraemer"
+date: "2023-04-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r data, include=FALSE, echo=FALSE}
+library(tidyverse)
+library(ggpubr)
+library(plotly)
+data = read_csv("gapminder_clean.csv")
+```
+
+Below is a scatterplot comparing GDP per capita with CO2 emissions in metric tons per capita in the year 1962.  The correlation between the two variables and its associated p-value are depicted on the plot.
+
+```{r 1962, echo=FALSE}
+data %>%
+  filter(Year == 1962) %>%
+  ggplot(aes(x = `CO2 emissions (metric tons per capita)`, y = gdpPercap)) +
+  geom_point() +
+  stat_cor(method = "pearson") + 
+  labs(title="GDP with Respect to CO2 Emissions in Tons (per Capita) 1962")
+```
+Below is the year in which the correlation between GDP per capita and CO2 emissions in metric tons per capita was the strongest.
+```{r findMaxCorrYear, echo=FALSE}
+maxCorrYear <- data %>%
+  group_by(Year) %>%
+  summarise(emissions_gdp_cor=cor(`CO2 emissions (metric tons per capita)`, gdpPercap, use="complete.obs")) %>%
+  slice_max(emissions_gdp_cor) %>%
+  select(Year)
+print(maxCorrYear[[1]])
+```
+Below is an interactive plot depicting GDP per capita and CO2 emissions in metric tons per capita in 1967, where the size of each point is determined by the size of the corresponding nation's population and the points are color coded by continent.
+```{r withinMaxCorrYear, echo=FALSE}
+gg <- data %>%
+  filter(Year == maxCorrYear[[1]]) %>%
+  ggplot(aes(x = `CO2 emissions (metric tons per capita)`, y = gdpPercap)) +
+  geom_point(aes(size=pop, color=continent)) +
+  stat_cor(method = "pearson") +
+  labs(title="GDP with Respect to CO2 Emission in Tons (per Capita)")
+p <- ggplotly(gg)
+p
+```
+Below we will investigate the relationship between continent and energy use (kg of oil per capita) spanning the entirety of the dataset.  Given that continent is a nonbinary, categorical variable and energy use is a quantitative variable, we will start with an ANOVA test for statistical significance.
+```{r aov, echo=FALSE}
+library(multcomp)
+
+withCountry <- data[!is.na(data$continent),]
+res_aov <- aov(`Energy use (kg of oil equivalent per capita)` ~ continent,
+                   data=withCountry)
+summary(res_aov)
+```
+Given that the p-value is below 0.05, at a standard confidence level of 95%, we have determined that there is some statistically significant relationship between continent and energy use in this dataset.  For more specific understanding of that relationship, we will now use Tukey HSD testing for pairwise comparisons of energy use between each two countries.
+```{r tukey, echo=FALSE}
+TukeyHSD(res_aov, conf.level = .95)
+```
+As seen above, there are two pairs with a p-value > 0.05: Asia-Americas and Europe-Oceania.  This observation supports a three-way clustering of energy use by continent in which one cluster consists solely of Africa, the other consists of Asia and America, and the other consists of Europe and Oceania.  Within-cluster similarity is illustrated by the below boxplot.
+```{r boxp, echo=FALSE}
+withCountry %>%
+  ggplot(aes(x = continent, y = `Energy use (kg of oil equivalent per capita)`)) +
+  geom_boxplot() + 
+  labs(title="Energy use with Respect to Continent")
+```
+
+Below we will determine whether there is a significant difference between Europe and Asia with respect to import goods and services as a % of GDP.  Given that we are using a binary subset of the categorical continent variable for prediction and that import goods and services as a % of GDP is a quantitative variable, t-testing will be used.
+```{r euro-asia-imports, echo=FALSE}
+data %>%
+  filter(continent == "Asia" | continent == "Europe") %>%
+  summarise(pval = t.test(`Imports of goods and services (% of GDP)` ~ continent, var.equal = TRUE)$p.value)
+```
+Given that the p-value is below 0.05, there is a significant difference between Europe and Asia with respect to import goods and services as a % of GDP.
+
+Below is the country tied for highest average population density per sq km of land area across all years within the dataset.
+```{r country-pop, echo=FALSE}
+library(dbplyr)
+data %>%
+  group_by(`Country Name`) %>%
+  summarise(avg_pop_density = mean(`Population density (people per sq. km of land area)`)) %>%
+  slice_max(avg_pop_density) %>%
+  dplyr::select(`Country Name`)
+```
+
+Below is the country with the highest increase in life expectancy from 1962 to 2007.
+```{r life-expec, echo=FALSE}
+data %>%
+  filter(Year == 1962 | Year == 2007) %>%
+  group_by(`Country Name`) %>%
+  summarise(life_change = `Life expectancy at birth, total (years)`[2] - `Life expectancy at birth, total (years)`[1]) %>%
+  slice_max(life_change) %>%
+  dplyr::select(`Country Name`)
+```

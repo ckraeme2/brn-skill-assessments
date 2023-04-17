@@ -1,0 +1,107 @@
+---
+title: "Differential Gene Expression Following EWSR1-FLI1 Knock-Down"
+author: "Charles Kraemer"
+date: "2023-04-11"
+output:
+  html_document:
+    theme: journal
+    highlight: monochrome
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r init, include=FALSE, echo=FALSE}
+suppressMessages( library(phantasus) )
+r <- readRDS("./EwS.rds")
+library(DESeq2)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(EnsDb.Hsapiens.v86)
+
+pThr <- 0.01
+logFcThr <- 1
+baseMeanThr <- 20
+cpmThr <- 1
+
+d <- DESeqDataSet(r, design = ~condition)
+dds <- DESeq(d)
+res <- results(dds)
+rld <- rlog(dds)
+```
+
+# Principal Component Analysis
+
+```{r pca, echo=FALSE}
+plotPCA(rld, intgroup=c("condition"))
+```
+
+```{r deseq, echo=FALSE, include=FALSE}
+idx = which (res$padj <= pThr & abs( res$log2FoldChange ) >= logFcThr &
+               res$baseMean >= baseMeanThr)
+sigres = res[idx,]
+```
+
+# MA Plot
+
+```{r plot-ma, echo=FALSE}
+plotMA(res, alpha=pThr)
+```
+
+# Differentially Expressed Genes
+
+```{r differential-table, echo=FALSE}
+library(kableExtra)
+kbl(as.data.frame(sigres)) %>%
+  kable_paper() %>%
+  scroll_box(height="500px")
+```
+# Volcano Plot
+```{r enhanced-volcano, echo=FALSE}
+suppressMessages(library(EnhancedVolcano))
+
+EnhancedVolcano(res, lab= rownames(res), x='log2FoldChange', y='pvalue')
+```
+
+# Heatmap for Top 10 Over and Under Expressed Genes
+
+```{r heat-map, echo=FALSE}
+suppressMessages(library(tidyverse))
+library(dplyr)
+library(pheatmap)
+
+df <- as.data.frame(sigres)
+df$symbol <- rownames(sigres)
+ordered <- df %>% dplyr::arrange(padj)
+top_ten <- head(ordered, 10)
+bottom_ten <- tail(ordered, 10)
+total <- rbind(top_ten, bottom_ten)
+test <- as.data.frame(assays(d)$counts)
+test$symbol <- rownames(d)
+merged <- merge(total, test, by="symbol")
+rownames(merged) <- merged$symbol
+merged <- merged[,-1:-7]
+merged <- as.matrix(merged)
+pheatmap(merged, scale = "row", clustering_distance_rows = "correlation", main="Top 20 Differentially Expressed genes")
+```
+
+# Enrichment Analysis of Top Over and Under Expressed KEEG Pathways
+
+```{r add_genenames, echo=FALSE}
+suppressMessages(library(enrichR))
+ens2sym <- AnnotationDbi::select(EnsDb.Hsapiens.v86, keys = keys(EnsDb.Hsapiens.v86),
+                                 columns = c("SYMBOL"))
+resdf <- as.data.frame(merged)
+resdf <- resdf %>%
+  rownames_to_column() %>%
+  mutate(GENEID = gsub(rowname, pattern = "\\..+", replacement = "")) %>%
+  dplyr::select(-rowname) %>%
+  inner_join(y = ens2sym, by = "GENEID")
+enriched <- enrichr(resdf$SYMBOL, c("KEGG_2021_Human"))
+plotEnrich(enriched[[1]], showTerms = 10, numChar = 40, y = "Ratio", orderBy = "P.value")
+kbl(enriched[[1]]) %>%
+  kable_paper() %>%
+  scroll_box(width="1000px")
+```
