@@ -10,7 +10,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 ```
 
 ```{r init, include=FALSE, echo=FALSE}
@@ -35,7 +35,8 @@ rld <- rlog(dds)
 # Principal Component Analysis
 
 ```{r pca, echo=FALSE}
-plotPCA(rld, intgroup=c("condition"))
+suppressMessages( library(ggpubr) )
+plotPCA(rld, intgroup="condition") + ylim(-7, 7)
 ```
 
 ```{r deseq, echo=FALSE, include=FALSE}
@@ -53,8 +54,18 @@ plotMA(res, alpha=pThr)
 # Differentially Expressed Genes
 
 ```{r differential-table, echo=FALSE}
-library(kableExtra)
-kbl(as.data.frame(sigres)) %>%
+suppressMessages(library(kableExtra))
+suppressMessages(library(dplyr))
+suppressMessages(library(tidyverse))
+ens2sym <- AnnotationDbi::select(EnsDb.Hsapiens.v86, keys = keys(EnsDb.Hsapiens.v86),
+                                 columns = c("SYMBOL"))
+resdf <- as.data.frame(sigres)
+resdf <- resdf %>%
+  rownames_to_column() %>%
+  mutate(GENEID = gsub(rowname, pattern = "\\..+", replacement = "")) %>%
+  dplyr::select(-rowname) %>%
+  inner_join(y = ens2sym, by = "GENEID")
+kbl(resdf[,c(8,7,1,2,3,4,5,6)]) %>%
   kable_paper() %>%
   scroll_box(height="500px")
 ```
@@ -62,27 +73,24 @@ kbl(as.data.frame(sigres)) %>%
 ```{r enhanced-volcano, echo=FALSE}
 suppressMessages(library(EnhancedVolcano))
 
-EnhancedVolcano(res, lab= rownames(res), x='log2FoldChange', y='pvalue')
+EnhancedVolcano(resdf, lab= resdf$SYMBOL, x='log2FoldChange', y='pvalue')
 ```
 
 # Heatmap for Top 10 Over and Under Expressed Genes
 
 ```{r heat-map, echo=FALSE}
-suppressMessages(library(tidyverse))
-library(dplyr)
 library(pheatmap)
 
-df <- as.data.frame(sigres)
-df$symbol <- rownames(sigres)
-ordered <- df %>% dplyr::arrange(padj)
+resdf$join <- rownames(sigres)
+ordered <- resdf %>% dplyr::arrange(padj)
 top_ten <- head(ordered, 10)
 bottom_ten <- tail(ordered, 10)
 total <- rbind(top_ten, bottom_ten)
 test <- as.data.frame(assays(d)$counts)
-test$symbol <- rownames(d)
-merged <- merge(total, test, by="symbol")
-rownames(merged) <- merged$symbol
-merged <- merged[,-1:-7]
+test$join <- rownames(d)
+merged <- merge(total, test, by="join")
+rownames(merged) <- merged$SYMBOL
+merged <- merged[,-1:-9]
 merged <- as.matrix(merged)
 pheatmap(merged, scale = "row", clustering_distance_rows = "correlation", main="Top 20 Differentially Expressed genes")
 ```
@@ -90,16 +98,8 @@ pheatmap(merged, scale = "row", clustering_distance_rows = "correlation", main="
 # Enrichment Analysis of Top Over and Under Expressed KEEG Pathways
 
 ```{r add_genenames, echo=FALSE}
-suppressMessages(library(enrichR))
-ens2sym <- AnnotationDbi::select(EnsDb.Hsapiens.v86, keys = keys(EnsDb.Hsapiens.v86),
-                                 columns = c("SYMBOL"))
-resdf <- as.data.frame(merged)
-resdf <- resdf %>%
-  rownames_to_column() %>%
-  mutate(GENEID = gsub(rowname, pattern = "\\..+", replacement = "")) %>%
-  dplyr::select(-rowname) %>%
-  inner_join(y = ens2sym, by = "GENEID")
-enriched <- enrichr(resdf$SYMBOL, c("KEGG_2021_Human"))
+suppressMessages(library(enrichR, quietly = TRUE))
+enriched <- enrichr(rownames(merged), c("KEGG_2021_Human"))
 plotEnrich(enriched[[1]], showTerms = 10, numChar = 40, y = "Ratio", orderBy = "P.value")
 kbl(enriched[[1]]) %>%
   kable_paper() %>%

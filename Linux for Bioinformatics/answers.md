@@ -13,7 +13,7 @@ A: As reported on the terminal, the error is that the server is refusing my key.
 Q7. What was the solution?
 A: The solution was to run sudo vi /etc/ssh/sshd_config so as to edit the ssh configuration for the server.  Upon doing so, I set "PasswordAuthentication" to "yes".  This change causes the server to prompt for the user's password upon further attempts to ssh into sudouser.  In order for this new configuration to be adopted, I also reset the server using sudo service sshd restart.
 Q8. what does the sudo docker run part of the command do? and what does the salmon swim part of the command do?
-A: The sudo docker run part of the command creates a running container from the subsequently specified image with the security rights of root.  This container packages up the dependencies required by the image so as to ensure that its software can be executed within our environment.  The salmon swim part of the command specifies the image being containerized, salmon, and runs its swim command, which is said to "perform super-secret operation".
+A: The sudo docker run part of the command creates a running container from the subsequently specified image with the security rights of root.  This container packages up the dependencies required by the image so as to ensure that its software can be executed within our environment.  The salmon swim part of the command specifies the image being containerized, salmon, and runs its swim command, which is said to "perform super-secret operation", which in the very least generates the featured visual.
 Q9. What is the output of this command?
 A: serveruser is not in the sudoers file.  This incident will be reported
 Q10. What is the output of flask --version?
@@ -47,13 +47,13 @@ A: The -o athal.fa.gz part of the command specfifies that the name of the file d
 Q16. What is a .gz file?
 A: A gz file is an archive that has been compressed using Gnu Zip software.  It can be used to compress only one file; compression of several files would require another extension such as TAR.  gz files can be opened via GZip software that is native to the Linux operating system.
 Q17. What does the zcat command do?
-A: Like the more familiar cat command, the zcat command displays the contents of some given file on the terminal window.  However, its use is intended for compressed files such as those witha gz extension; it will expand and display the contents of a compressed file without requiring that file to be uncompressed.
+A: Like the more familiar cat command, the zcat command displays the contents of some given file on the terminal window.  However, its use is intended for compressed files such as those with a gz extension; it will expand and display the contents of a compressed file without requiring that file to be uncompressed.
 Q18. what does the head command do?
 A: By default, the head command will print the first 10 lines of a specified input stream.  However, with the -n flag, we can specify some first n lines for head to print.
 Q19. what does the number 100 signify in the command?
 A: The number 100 signifies that in this case, head will be used to print the first 100 lines of the specified input stream.
 Q20. What is | doing? -- Hint using | in Linux is called "piping"
-A: | is  inputting the output of the command on its lefthand side to the command on its righthand side.  In this case, it directs the expanded contents of athal.fa.gz output by zcat to head such that only the first 100 lines of those commands will be printed.
+A: | is  inputting the output of the command on its lefthand side to the command on its righthand side.  In this case, it directs the expanded contents of athal.fa.gz output by zcat to head such that only the first 100 lines of those contents will be printed.
 Q21. What is a .fa file? What is this file format used for?
 A: A .fa file is a file within the FASTA format.  This format is specialized for handling sequences of information like DNA; it uses a > symbol to delimit each sequence, followed by a unique identifier for that sequence.  In some cases like athal.fa.gz, auxiliary information like descriptions can then be added prior to the sequence itself.
 Q22. What format are the downloaded sequencing reads in?
