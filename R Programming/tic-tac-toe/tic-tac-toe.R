@@ -85,6 +85,10 @@ if (interactive()) {
 }
 cat("X or O? ")
 player <- readLines(con = con, n = 1)
+while(player != "X" && player != "O") {
+  cat("Must choose X or O (case sensitive)\nX or O? ")
+  player <- readLines(con = con, n = 1)
+}
 while (numMoves < 9) {
   if (player == currPlayer) {
     cat(paste("Round Number", as.character((numMoves / 2) + 1), "\n", sep = " "))
